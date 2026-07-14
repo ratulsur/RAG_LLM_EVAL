@@ -318,6 +318,22 @@ def run_ragas_over_orders():
     )
 
 
+def run_deepeval_over_orders(threshold: float = 0.7, top_k: int = 6, gold=None):
+    """End-to-end DeepEval: run the Pinecone pipeline over the gold set (defaults
+    to ORDERS_GOLD), capture each real answer + retrieved context, then score with
+    DeepEval's threshold metrics. Returns (samples, report) so the caller can both
+    inspect what the pipeline produced AND the per-metric pass/fail.
+
+    This is the wiring the RAG pipeline's `eval` command calls — DeepEval is the
+    default practice harness because its threshold + pass/fail model is exactly a
+    CI quality gate (Universal Document Ingestor)."""
+    gold = gold or ORDERS_GOLD
+    chain, retriever = build_orders_pipeline(top_k=top_k)
+    samples = build_eval_samples_from_pipeline(chain, retriever, gold)
+    report = evaluate_with_deepeval(samples, threshold=threshold)
+    return samples, report
+
+
 if __name__ == "__main__":
     # Default: offline lexical stub over the orders gold set — no keys/network,
     # just to see the metric SHAPE. Contexts here are hand-filled proxies.

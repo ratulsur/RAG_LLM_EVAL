@@ -47,6 +47,11 @@ RUN IT
     # ingest + a couple of demo queries in one go
     python practice/rag_langchain_pinecone.py demo
 
+    # evaluate the pipeline with DeepEval (Faithfulness / Answer Relevancy /
+    # Contextual Precision & Recall); add --gate for CI (non-zero exit on fail)
+    python practice/rag_langchain_pinecone.py eval
+    python practice/rag_langchain_pinecone.py eval --threshold 0.8 --gate
+
 Requires OPENAI_API_KEY and PINECONE_API_KEY in .env (already present).
 """
 
@@ -277,6 +282,44 @@ def cmd_demo(chunk_mode: str) -> None:
     cmd_query("Which orders were returned, and why?", top_k=16, meta_filter="status=Returned")
 
 
+def cmd_eval(top_k: int, threshold: float, gate: bool) -> None:
+    """Evaluate THIS pipeline with DeepEval — the default practice harness.
+
+    Runs the real pipeline over the gold set, then judges each answer on
+    DeepEval's threshold metrics (Faithfulness, Answer Relevancy, Contextual
+    Precision, Contextual Recall). DeepEval's score+threshold+pass/fail model is
+    a CI quality gate: `--gate` makes a failing check exit non-zero (for CI),
+    while the default just reports (for practice)."""
+    load_env()
+    from rag_eval_ragas_deepeval import run_deepeval_over_orders
+
+    print(f"DeepEval over the pipeline (top_k={top_k}, threshold={threshold})...\n")
+    _samples, report = run_deepeval_over_orders(threshold=threshold, top_k=top_k)
+
+    total = passed = 0
+    per_metric: dict[str, list[int]] = {}
+    for row in report:
+        print(f"Q: {row['question']}")
+        for name, res in row.items():
+            if name == "question":
+                continue
+            ok = bool(res["passed"])
+            total += 1
+            passed += int(ok)
+            agg = per_metric.setdefault(name, [0, 0])
+            agg[0] += int(ok)
+            agg[1] += 1
+            print(f"   {'PASS' if ok else 'FAIL'}  {name:<26} {res['score']:.3f}")
+        print()
+
+    print("Per-metric pass rate:")
+    for name, (p, n) in per_metric.items():
+        print(f"   {name:<26} {p}/{n}")
+    print(f"\nOverall: {passed}/{total} checks passed ({passed / max(total, 1):.0%}).")
+    if gate and passed < total:
+        sys.exit(1)  # CI gate: fail the build on any metric below threshold
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="RAG over customer orders (Pinecone + OpenAI).")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -297,6 +340,11 @@ def main() -> None:
     p_d = sub.add_parser("demo", help="ingest + a few demo questions")
     p_d.add_argument("--chunk", choices=["row", "semantic"], default="row")
 
+    p_e = sub.add_parser("eval", help="evaluate the pipeline with DeepEval")
+    p_e.add_argument("--top-k", type=int, default=6)
+    p_e.add_argument("--threshold", type=float, default=0.7)
+    p_e.add_argument("--gate", action="store_true", help="exit non-zero on any metric below threshold (CI mode)")
+
     args = parser.parse_args()
     if args.command == "ingest":
         cmd_ingest(args.chunk)
@@ -304,6 +352,8 @@ def main() -> None:
         cmd_query(args.question, args.top_k, args.meta_filter)
     elif args.command == "demo":
         cmd_demo(args.chunk)
+    elif args.command == "eval":
+        cmd_eval(args.top_k, args.threshold, args.gate)
 
 
 if __name__ == "__main__":
