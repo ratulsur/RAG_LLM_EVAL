@@ -37,3 +37,10 @@ build_docx.py
 
 # ---- Generated eval artifacts ----
 practice/eval_suite/ragas_failures.json
+
+# ---- Generated ingestion fixtures (reproducible via each fixtures/generate.py) ----
+practice/ingestion_challenges/**/fixtures/**
+!practice/ingestion_challenges/**/fixtures/
+!practice/ingestion_challenges/**/fixtures/**/
+!practice/ingestion_challenges/**/fixtures/**/*.py
+!practice/ingestion_challenges/**/fixtures/**/README.md

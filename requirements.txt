@@ -33,3 +33,14 @@ datasets                 # eval dataset objects consumed by ragas
 pinecone                 # managed vector DB client (serverless index)
 langchain-pinecone       # LangChain PineconeVectorStore integration
 python-dotenv            # load OPENAI_API_KEY / PINECONE_API_KEY from .env
+
+# --- Added for the ingestion-challenges module (practice/ingestion_challenges/*) ---
+openpyxl                 # .xlsx parsing (Excel/CSV codebase)
+chardet                  # encoding detection (CSV/email codebases)
+pypdf                    # basic PDF text + encryption detection
+pdfplumber               # PDF words/tables/bbox layout (multi-column, tables, headers)
+pymupdf                  # fast PDF layout blocks + embedded-image extraction
+# Heavy / system-level deps are OPTIONAL and guarded in-code (not required to run):
+#   OCR: tesseract binary + pytesseract | easyocr | paddleocr | doctr
+#   images: opencv-python (deskew/perspective)  |  web JS: playwright
+#   email .msg: extract-msg  |  legacy .doc: textract/antiword/libreoffice(soffice)
