@@ -5,14 +5,19 @@ Evaluates the runnable LangChain RAG pipeline from `rag_langchain_pinecone.py`
 metric theory below is vector-store-agnostic — it applied to the FAISS study
 file too; only the pipeline we point the sampler at, and the gold set, changed.
 
-WHICH TOOL DO I TEACH?  ->  RAGAS as the primary, DeepEval as the second lens.
+WHICH TOOL DO I TEACH?  ->  DeepEval is the PRIMARY practice + CI harness here;
+RAGAS is the second lens for reasoning about metric definitions.
+  - DeepEval frames every metric as an object with a THRESHOLD and a pass/fail
+    (is_successful) — a CI quality gate you can run per commit. You SHIPPED
+    DeepEval in Universal Document Ingestor, so it's your project soundbite. This
+    file wires the FULL suite (Faithfulness, Answer Relevancy, Contextual
+    Precision/Recall/Relevancy, Hallucination, and a custom GEval citation judge)
+    plus a pytest-style `assert_test` gate, and the pipeline's `eval` command
+    calls straight into it (`python rag_langchain_pinecone.py eval`).
   - RAGAS is purpose-built for RAG and its four metrics (faithfulness, answer
     relevance, context precision, context recall) map 1:1 onto the pipeline
     stages you built — retrieval quality vs generation quality. It's the fastest
     way to reason about "is my RETRIEVER wrong or is my GENERATOR wrong."
-  - DeepEval is broader (a pytest-style LLM eval framework, metrics beyond RAG,
-    CI integration). You SHIPPED DeepEval in Universal Document Ingestor, so it's
-    your project soundbite. We show it minimally here so you can speak to both.
 
 THE ONE MENTAL MODEL TO CARRY IN
 --------------------------------
@@ -172,49 +177,150 @@ def evaluate_with_ragas(samples: list[EvalSample], judge_llm=None, judge_embeddi
 
 
 # ===========================================================================
-# OPTION B — DeepEval  (your Universal Doc Ingestor soundbite)
+# OPTION B — DeepEval  (the PRIMARY practice + CI harness; Universal Doc soundbite)
 # ===========================================================================
-def evaluate_with_deepeval(samples: list[EvalSample], threshold: float = 0.7):
-    """Minimal DeepEval pass — pytest-style, metric objects with pass/fail
-    thresholds, which is why it slots into CI.
+# DeepEval's model: each metric is an object with a THRESHOLD and a
+# measure(test_case) -> score + is_successful() pass/fail. That threshold model
+# IS a CI quality gate ("faithfulness >= 0.7 on the gold set") — exactly what you
+# ran in Universal Document Ingestor. We expose the FULL suite so both the
+# pipeline's `eval` command and the pytest gate below use it.
+#
+# DIRECTION: Faithfulness / AnswerRelevancy / Contextual{Precision,Recall,
+# Relevancy} / the citation GEval are HIGHER-IS-BETTER (pass if score >=
+# threshold). Hallucination is LOWER-IS-BETTER (pass if score <= its own max) —
+# each metric's is_successful() encodes its own direction, so the report is
+# uniform: {score, passed}.
 
-    EXPERT NOTES:
-      - DeepEval frames each metric as an object with a THRESHOLD and a
-        measure(test_case) call -> score + boolean pass. That threshold+CI model
-        is the point: you gate a deploy on "faithfulness >= 0.7 on the gold set",
-        which is exactly the quality gate you ran in Universal Document Ingestor.
-      - FaithfulnessMetric here == RAGAS faithfulness; AnswerRelevancyMetric ==
-        answer relevance; ContextualPrecision/Recall == the retrieval pair. Same
-        concepts, different framework ergonomics.
-    """
+
+def _to_test_case(s: EvalSample):
+    """EvalSample -> DeepEval LLMTestCase.
+
+    Field wiring is deliberate:
+      - retrieval_context = the chunks the retriever returned (Faithfulness /
+        Contextual{Precision,Recall,Relevancy} judge against these).
+      - context           = the FACTUAL REFERENCE (ground truth). HallucinationMetric
+        checks the answer for CONTRADICTION against `context`; feeding it the noisy
+        retrieved chunks (many irrelevant) makes it count off-topic chunks as
+        hallucinations. The labelled answer is the correct factual anchor."""
+    from deepeval.test_case import LLMTestCase
+
+    return LLMTestCase(
+        input=s.question,
+        actual_output=s.answer,
+        retrieval_context=s.contexts,
+        expected_output=s.ground_truth,
+        context=[s.ground_truth],
+    )
+
+
+def build_deepeval_metrics(threshold: float = 0.7):
+    """Construct the DeepEval metric suite. Each metric is created defensively so
+    a version mismatch skips ONE metric with a note rather than crashing the run.
+    Hallucination gets an inverted gate (max acceptable hallucination), and a
+    GEval metric adds a RAG-specific custom judge: correct order-id citation."""
     from deepeval.metrics import (
         AnswerRelevancyMetric,
         ContextualPrecisionMetric,
         ContextualRecallMetric,
+        ContextualRelevancyMetric,
         FaithfulnessMetric,
+        GEval,
+        HallucinationMetric,
     )
-    from deepeval.test_case import LLMTestCase
+    from deepeval.test_case import LLMTestCaseParams
 
-    metrics = [
-        FaithfulnessMetric(threshold=threshold),
-        AnswerRelevancyMetric(threshold=threshold),
-        ContextualPrecisionMetric(threshold=threshold),
-        ContextualRecallMetric(threshold=threshold),
-    ]
+    metrics = []
+
+    def add(factory, label):
+        try:
+            metrics.append(factory())
+        except Exception as e:  # version drift / metric unavailable
+            print(f"  [skip] {label}: {e}")
+
+    # Generation quality
+    add(lambda: FaithfulnessMetric(threshold=threshold), "Faithfulness")
+    add(lambda: AnswerRelevancyMetric(threshold=threshold), "AnswerRelevancy")
+    # Retrieval quality
+    add(lambda: ContextualPrecisionMetric(threshold=threshold), "ContextualPrecision")
+    add(lambda: ContextualRecallMetric(threshold=threshold), "ContextualRecall")
+    # NOTE: Contextual Relevancy = signal-to-noise of the retrieved context. It is
+    # LOW BY DESIGN at the pipeline's default top_k=6 on single-order questions
+    # (5 of 6 chunks are off-topic). Read it as a DIAGNOSTIC that argues for lower
+    # k or a reranker — not a broken metric. It's the honest cost of high recall.
+    add(lambda: ContextualRelevancyMetric(threshold=threshold), "ContextualRelevancy")
+    # Direct hallucination (lower is better -> invert the gate)
+    add(lambda: HallucinationMetric(threshold=round(1 - threshold, 2)), "Hallucination")
+    # Custom RAG judge: does the answer cite the order id(s) that back its claims?
+    add(
+        lambda: GEval(
+            name="CitationCorrectness",
+            criteria=(
+                "Given the question, the answer, and the retrieved order records, "
+                "decide whether the answer cites the correct [order NNNN] id(s) for "
+                "the facts it states. Penalize missing or wrong citations."
+            ),
+            evaluation_params=[
+                LLMTestCaseParams.INPUT,
+                LLMTestCaseParams.ACTUAL_OUTPUT,
+                LLMTestCaseParams.RETRIEVAL_CONTEXT,
+            ],
+            threshold=threshold,
+        ),
+        "CitationCorrectness(GEval)",
+    )
+    return metrics
+
+
+def evaluate_with_deepeval(samples: list[EvalSample], threshold: float = 0.7, metrics=None):
+    """Score each sample with the full DeepEval suite. Returns a report:
+    list of {question, MetricName: {score, passed}} — the contract the pipeline's
+    `eval` command consumes, so enriching the suite enriches that command too."""
+    metrics = metrics if metrics is not None else build_deepeval_metrics(threshold)
     report = []
     for s in samples:
-        tc = LLMTestCase(
-            input=s.question,
-            actual_output=s.answer,
-            retrieval_context=s.contexts,
-            expected_output=s.ground_truth,
-        )
+        tc = _to_test_case(s)
         row = {"question": s.question}
         for m in metrics:
             m.measure(tc)  # runs the judge
-            row[type(m).__name__] = {"score": m.score, "passed": m.is_successful()}
+            name = getattr(m, "__name__", None) or type(m).__name__
+            row[name] = {"score": m.score, "passed": bool(m.is_successful())}
         report.append(row)
     return report
+
+
+def build_deepeval_dataset(samples: list[EvalSample]):
+    """Bundle samples into a DeepEval EvaluationDataset (batch/CI ergonomics).
+    Then: `from deepeval import evaluate; evaluate(dataset, build_deepeval_metrics())`."""
+    from deepeval.dataset import EvaluationDataset
+
+    return EvaluationDataset(test_cases=[_to_test_case(s) for s in samples])
+
+
+def test_orders_pipeline_quality():
+    """pytest-discoverable DeepEval GATE. Run either:
+        deepeval test run practice/rag_eval_ragas_deepeval.py
+        pytest practice/rag_eval_ragas_deepeval.py
+    Fails the build if any metric on any gold sample is below threshold. Skips
+    (never falsely fails) when live keys / the pipeline aren't available."""
+    import os
+
+    from rag_langchain_pinecone import load_env
+
+    load_env()
+    if not (os.getenv("OPENAI_API_KEY") and os.getenv("PINECONE_API_KEY")):
+        try:
+            import pytest
+
+            pytest.skip("live OPENAI/PINECONE keys not set; skipping DeepEval gate")
+        except ImportError:
+            return
+    from deepeval import assert_test
+
+    chain, retriever = build_orders_pipeline()
+    samples = build_eval_samples_from_pipeline(chain, retriever, ORDERS_GOLD)
+    metrics = build_deepeval_metrics(threshold=0.7)
+    for s in samples:
+        assert_test(_to_test_case(s), metrics)
 
 
 # ===========================================================================
@@ -347,6 +453,10 @@ if __name__ == "__main__":
         for q, gt in ORDERS_GOLD
     ]
     print(evaluate_offline_stub(samples))
-    # Real eval against the live Pinecone pipeline + RAGAS judge:
-    #   from rag_eval_ragas_deepeval import run_ragas_over_orders
-    #   print(run_ragas_over_orders())
+    # Real eval against the live Pinecone pipeline:
+    #   DeepEval (primary practice harness):
+    #     python rag_langchain_pinecone.py eval        # or: from rag_eval_ragas_deepeval import run_deepeval_over_orders
+    #   DeepEval CI gate (pytest / assert_test):
+    #     deepeval test run practice/rag_eval_ragas_deepeval.py
+    #   RAGAS (second lens):
+    #     from rag_eval_ragas_deepeval import run_ragas_over_orders; print(run_ragas_over_orders())
