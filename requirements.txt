@@ -1,0 +1,35 @@
+langgraph==0.6.8
+langchain_community==0.3.30
+langchain_core==0.3.78
+tavily-python==0.7.12
+wikipedia==1.4.0
+langchain-openai==0.3.32
+langchain-google-genai==2.1.8
+langchain-groq==0.3.6
+structlog==25.4.0
+python-docx==1.2.0
+reportlab==4.4.4
+fastapi==0.120.0
+uvicorn==0.38.0
+jinja2==3.1.6
+httpx==0.28.1
+aiofiles>=23.2.1
+sqlalchemy==2.0.43
+bcrypt==3.2.2
+passlib==1.7.4
+python-multipart
+pydantic
+faiss-cpu
+
+# --- Added for the RAG practice module (practice/*.py) ---
+numpy                    # vector math in the from-scratch RAG pipeline
+openai                   # direct OpenAI client used in tue_rag_core_reference.py
+langchain-experimental   # SemanticChunker (rag_with_langchain_semantic.py)
+ragas                    # RAG evaluation metrics (rag_eval_ragas_deepeval.py)
+deepeval                 # RAG evaluation + CI-style thresholds (rag_eval_ragas_deepeval.py)
+datasets                 # eval dataset objects consumed by ragas
+
+# --- Added for the Pinecone RAG harness (practice/rag_langchain_pinecone.py) ---
+pinecone                 # managed vector DB client (serverless index)
+langchain-pinecone       # LangChain PineconeVectorStore integration
+python-dotenv            # load OPENAI_API_KEY / PINECONE_API_KEY from .env

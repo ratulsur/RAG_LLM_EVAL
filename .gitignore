@@ -1,0 +1,38 @@
+# ---- Secrets / environment ----
+.env
+.env.*
+*.key
+
+# ---- Virtual environments ----
+venv/
+.venv/
+env/
+
+# ---- Claude Code agents / skills / local config ----
+.claude/
+
+# ---- Editor / OS cruft ----
+.vscode/
+.idea/
+.DS_Store
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# ---- Tool caches / telemetry ----
+.deepeval/
+.deepeval
+
+# ---- Job-search / resume materials (kept out of this code repo) ----
+resume/
+plan of work.txt
+*.docx
+*.pdf
+CLAUDE.md
+build_docx.py
+
+# ---- Generated eval artifacts ----
+practice/eval_suite/ragas_failures.json

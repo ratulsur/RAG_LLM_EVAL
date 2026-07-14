@@ -1,0 +1,17 @@
+order_id,order_date,customer_name,region,product,category,quantity,unit_price,total,status,notes
+1001,2026-01-05,Alice Johnson,US-East,Wireless Mouse,Accessories,2,29.99,59.98,Shipped,Customer asked for gift wrapping. Delivered on time and left a five-star review praising the packaging.
+1002,2026-01-06,Rahul Mehta,IN-West,Mechanical Keyboard,Accessories,1,89.00,89.00,Delivered,Keyboard arrived with two dead keys. Replacement was dispatched under warranty and the issue is now resolved.
+1003,2026-01-08,Wei Chen,APAC-North,27-inch Monitor,Displays,1,249.50,249.50,Processing,Payment cleared but the item is on backorder. Expected restock in two weeks. Customer notified by email.
+1004,2026-01-09,Sofia Garcia,EU-South,USB-C Hub,Accessories,3,45.00,135.00,Cancelled,Customer changed their mind before shipment. Full refund issued to the original card within 24 hours.
+1005,2026-01-10,James O'Brien,US-West,Laptop Stand,Accessories,1,39.99,39.99,Delivered,No issues reported. Repeat customer who orders office equipment every quarter.
+1006,2026-01-11,Priya Nair,IN-South,Noise Cancelling Headphones,Audio,1,199.00,199.00,Shipped,Priority shipping selected. Customer is a member of the loyalty program and earned double points.
+1007,2026-01-12,Tom Becker,EU-Central,Webcam 1080p,Accessories,2,55.00,110.00,Delivered,One unit had a blurry lens; customer accepted a partial refund instead of a replacement.
+1008,2026-01-13,Aisha Khan,ME-Gulf,Ergonomic Chair,Furniture,1,320.00,320.00,Processing,Bulky item requiring freight shipping. Delivery window is seven to ten business days.
+1009,2026-01-14,Daniel Kim,APAC-North,Standing Desk,Furniture,1,410.00,410.00,Shipped,Corporate purchase order. Invoice sent to the accounts department for net-30 payment.
+1010,2026-01-15,Laura Rossi,EU-South,Desk Lamp,Lighting,4,22.50,90.00,Delivered,Bulk order for a co-working space. Customer requested a VAT invoice which was provided.
+1011,2026-01-16,Marcus Lee,US-East,Wireless Mouse,Accessories,5,29.99,149.95,Returned,Customer reported that three units stopped working within a week. Under investigation for a possible batch defect.
+1012,2026-01-17,Nadia Petrova,EU-East,Mechanical Keyboard,Accessories,1,89.00,89.00,Delivered,Smooth transaction. Customer left positive feedback about the fast delivery.
+1013,2026-01-18,Kenji Tanaka,APAC-North,27-inch Monitor,Displays,2,249.50,499.00,Shipped,Dual-monitor setup for a home office. Customer asked about a compatible monitor arm for a future order.
+1014,2026-01-19,Emma Wilson,US-West,Noise Cancelling Headphones,Audio,1,199.00,199.00,Cancelled,Ordered by mistake and cancelled within the hour. No charge was applied.
+1015,2026-01-20,Omar Farooq,ME-Gulf,USB-C Hub,Accessories,2,45.00,90.00,Delivered,Customer confirmed the hub works with their MacBook. Asked to be notified about future accessory discounts.
+1016,2026-01-21,Grace Miller,US-East,Ergonomic Chair,Furniture,1,320.00,320.00,Returned,Chair was returned because the height was unsuitable. Refund pending inspection at the warehouse.
