@@ -9,7 +9,7 @@ Reference pipeline under test:  practice/rag_langchain_pinecone.py
     OpenAIEmbeddings -> Pinecone(customer-orders-rag) -> ChatOpenAI(gpt-4o-mini).
 
 ============================================================================
-THE METRIC MAP (what each one guards, and its RAGAS twin)
+THE METRIC MAP 
 ============================================================================
     DeepEval metric              guards                     RAGAS twin
     ---------------              ------                     ----------
@@ -34,7 +34,7 @@ THE ONE DISTINCTION INTERVIEWERS PROBE — Faithfulness vs Hallucination in Deep
   didn't say", HallucinationMetric for "did my generator contradict ground truth".
 
 ============================================================================
-GEval — LLM-as-judge with a CUSTOM rubric (the flexible one)
+GEval — LLM-as-judge with a CUSTOM rubric 
 ============================================================================
 GEval turns a plain-English criterion into a scored metric via chain-of-thought
 judging. Here we build "answer cites the correct order id" — a domain rule pure
@@ -42,7 +42,7 @@ RAGAS metrics can't express. This is how you encode Synapse-style business rules
 (e.g. "the drafted section cites its source") as an automated gate.
 
 ============================================================================
-SYNTHETIC DATA (mention this, it signals maturity)
+SYNTHETIC DATA 
 ============================================================================
 DeepEval ships `deepeval.synthesizer.Synthesizer`, which generates
 goldens (input/expected_output pairs) FROM your documents so you don't hand-author
@@ -54,7 +54,7 @@ You then review/curate the goldens (never ship un-reviewed synthetic labels — 
 'reframe, never fabricate' discipline) and load them into an EvaluationDataset.
 
 ============================================================================
-INSTALLED-VERSION NOTES (verified by import before finalizing)
+INSTALLED-VERSION NOTES 
 ============================================================================
   deepeval 4.0.7:
     from deepeval.test_case import LLMTestCase, LLMTestCaseParams   # 'test_case' SINGULAR
